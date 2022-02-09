@@ -9,13 +9,25 @@ import UIKit
 
 final class MainAppSceneDelegate: UIResponder, UIWindowSceneDelegate {
     
-    var window: UIWindow?
+    var appCoordinator: Coordinator?
     
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let scene = (scene as? UIWindowScene) else { return }
-        window = UIWindow(windowScene: scene)
-        window?.rootViewController = ViewController()
-        window?.makeKeyAndVisible()
+        
+        ServiceContainer.initial()
+        
+        ServiceContainer.main.addService {
+            PersistenceStorageAdapter()
+        }
+        .implements(PersistenceStorageInsertPort.self)
+        .implements(PersistenceStorageFetchPort.self)
+        .implements(PersistenceStorageDeletePort.self)
+        .implements(PersistenceStorageObserverPort.self)
+        .implements(PersistenceStorageUpdatePort.self)
+        
+        appCoordinator = AppCoordinator(window: UIWindow(windowScene: scene),
+                                        serviceContainer: ServiceContainer.main)
+        appCoordinator?.start()
     }
     
     func sceneDidDisconnect(_ scene: UIScene) {}
