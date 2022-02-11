@@ -10,6 +10,7 @@ import Foundation
 enum FieldError: Error {
     
     case dbError(reason: DBError)
+    case selfFoundNil
     
     enum DBError: Error {
         case ValuesFoundNil(propertyNames:[String] = [])
@@ -17,6 +18,7 @@ enum FieldError: Error {
         case CannotFindObject
         case WriteContextNotExist
         case ReadContextNotExist
+        case ContextNotExist(name: String)
         case CannotFetch
         case CannotFetchInObserveMode
         case CannotDelete
@@ -25,6 +27,7 @@ enum FieldError: Error {
         case CannotMap
         case CannotSetRelationShip
         case CannotDetectChanges(for: ChangeType)
+        case InvalidObjectID(String)
 
     }
 }
