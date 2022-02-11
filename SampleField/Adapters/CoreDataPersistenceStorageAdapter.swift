@@ -237,7 +237,7 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageFetchPort {
                     
                     let context = try safeContext.get()
                     
-                    let managedObject: ObjectConvertible = try context.object(with: objectID)
+                    let managedObject: T.NSManagedObjectType = try context.safeObject(with: objectID)
                     
                     item = try managedObject.toObject()
                 } catch let error as ContextableError {
