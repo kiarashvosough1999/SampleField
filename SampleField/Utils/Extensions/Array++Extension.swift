@@ -7,16 +7,16 @@
 
 import Foundation
 
-extension Array {
+extension Collection {
     
-    func safeIndex(index: Int) -> Array.Element? {
+    func safeIndex(index: Int) -> Element? {
         if count > index && index >= 0 {
             return self[index]
         }
         return nil
     }
     
-    subscript(safe: Int) -> Array.Element? {
+    subscript(safe: Int) -> Element? {
         get {
             if count > safe && safe >= 0 {
                 return self[safe]
