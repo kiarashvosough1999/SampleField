@@ -33,6 +33,8 @@ extension ConnectableView {
     func addViews() {}
     
     func setupView() {}
+    
+    func setupConstraints() -> [NSLayoutConstraint] { [] }
 }
 
 
