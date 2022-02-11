@@ -36,6 +36,7 @@ public class TextInputHolder: NSManagedObject, ObjectConvertible {
         if T.self == FirstInputHolderModel.self {
             return FirstInputHolderModel(identifier: identifier,
                                          dateAdded: dateAdded,
+                                         id: Int64(identifier.hashValue),
                                          input: input) as? T
         }
         

@@ -6,18 +6,28 @@
 //
 
 import Foundation
+import Combine
 
 protocol InputCoordinatorDelegate: AnyObject {
-    
+    var presentPopUpSubject: InFailablePassThroughSubject<Void> { get }
 }
 
-final class InputCoordinator: BaseCoordinator {
+final class InputCoordinator: BaseCoordinator, InputCoordinatorDelegate {
+    
+    var presentPopUpSubject: InFailablePassThroughSubject<Void> = InFailablePassThroughSubject<Void>()
+    
+    fileprivate var cancelables = Set<AnyCancellable>()
     
     override func start() {
-        navigationController?.pushViewController(ViewController(), animated: false)
+        let view = FirstInputViewController.build(with: self, and: serviceContainer.getService()!)
+        navigationController?.pushViewController(view, animated: false)
+        
+        startObservingDelegate()
     }
-}
-
-extension InputCoordinator: InputCoordinatorDelegate {
     
+    fileprivate func startObservingDelegate() {
+        presentPopUpSubject.sink { _ in
+            print("dasdsadsad")
+        }.store(in: &cancelables)
+    }
 }

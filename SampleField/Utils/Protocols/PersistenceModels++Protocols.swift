@@ -36,5 +36,5 @@ protocol NSMangedObjectConvertible: Hashable {
     associatedtype NSManagedObjectType: ObjectConvertible
     
     /// An identifier that is used to fetch the corresponding database object.
-    var identifier: String { get }
+    var identifier: String { get set }
 }

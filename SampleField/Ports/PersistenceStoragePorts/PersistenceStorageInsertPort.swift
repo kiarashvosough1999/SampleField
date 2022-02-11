@@ -6,7 +6,12 @@
 //
 
 import Foundation
+import Combine
+import CoreData
 
 protocol PersistenceStorageInsertPort {
-    func insert<T>(_ object: T) throws where T: NSMangedObjectConvertible
+    
+    func insertSync<T>(_ object: T, on context: ContextName) -> Result<T,FieldError> where T: NSMangedObjectConvertible
+    
+    func insert<T>(_ object: T, on context: ContextName) -> AnyPublisher<T,FieldError> where T: NSMangedObjectConvertible
 }

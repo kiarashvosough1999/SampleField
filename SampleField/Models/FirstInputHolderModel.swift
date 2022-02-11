@@ -7,12 +7,19 @@
 
 import Foundation
 
-struct FirstInputHolderModel: NSMangedObjectConvertible {
+struct FirstInputHolderModel: NSMangedObjectConvertible, Clonable {
     
     typealias NSManagedObjectType = TextInputHolder
     
     var identifier: String = ""
     var dateAdded: Date = Date()
-    var id: Int64 { Int64(identifier.hashValue) }
+    var id: Int64
     var input: String
+    
+    init(identifier: String = "", dateAdded: Date = Date(), id: Int64 = 0, input: String) {
+        self.identifier = identifier
+        self.dateAdded = dateAdded
+        self.id = id == 0 ? Int64(identifier.hashValue) : id
+        self.input = input
+    }
 }
