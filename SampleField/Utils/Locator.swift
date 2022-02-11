@@ -7,13 +7,14 @@
 
 import Foundation
 
+/// Recursive resolving must use locks, As it takes time to implement I ignored it for now
 struct RegisteryOptions<Service> {
+    
     let container: ServiceContainer
-    let key: String
     
     @discardableResult
     public func implements<Protocol>(_ type: Protocol.Type) -> Self {
-        container.addService { () -> Protocol in
+        container.addService { container -> Protocol in
             let res: Service = container.getService()!
             return res as! Protocol
         }
@@ -26,7 +27,7 @@ protocol ServiceLocator {
     func getService<T>() -> T?
     
     @discardableResult
-    func addService<T>(recipe: @escaping () -> T) -> RegisteryOptions<T>
+    func addService<T>(recipe: @escaping (ServiceLocator) -> T) -> RegisteryOptions<T>
     
     @discardableResult
     func addService<T>(instance: T) -> RegisteryOptions<T>
@@ -46,24 +47,24 @@ final class ServiceContainer: ServiceLocator {
     }
     
     @discardableResult
-    func addService<T>(recipe: @escaping () -> T) -> RegisteryOptions<T> {
+    func addService<T>(recipe: @escaping (ServiceLocator) -> T) -> RegisteryOptions<T> {
         let key = typeName(some: T.self)
         reg[key] = .Recipe(recipe)
-        return .init(container: self, key: key)
+        return .init(container: self)
     }
     
     @discardableResult
     func addService<T>(instance: T) -> RegisteryOptions<T> {
         let key = typeName(some: T.self)
         reg[key] = .Instance(instance)
-        return .init(container: self, key: key)
+        return .init(container: self)
     }
     
     func getService<T>() -> T? {
         let key = typeName(some: T.self)
         var instance: T? = nil
         if let registryRec = reg[key] {
-            instance = registryRec.unwrap() as? T
+            instance = registryRec.unwrap(with: self) as? T
             switch registryRec {
             case .Recipe:
                 if let instance = instance {
@@ -83,14 +84,14 @@ extension ServiceContainer {
     fileprivate enum RegistryRec {
         
         case Instance(Any)
-        case Recipe(() -> Any)
+        case Recipe((ServiceLocator) -> Any)
         
-        func unwrap() -> Any {
+        func unwrap(with locator: ServiceLocator) -> Any {
             switch self {
             case .Instance(let instance):
                 return instance
             case .Recipe(let recipe):
-                return recipe()
+                return recipe(locator)
             }
         }
     }
