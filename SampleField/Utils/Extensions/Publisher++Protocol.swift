@@ -8,7 +8,8 @@
 import Foundation
 import Combine
 
-extension Publisher  {
+@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+extension Publisher {
     
     public func replaceAnyInconsistency(with output: Self.Output) -> Publishers.ReplaceError<Publishers.ReplaceEmpty<Self>> {
         self.replaceEmpty(with: output)
@@ -20,8 +21,31 @@ extension Publisher  {
             .replaceError(with: output)
             .replaceNil(with: output)
     }
+    
+    public func conditionalMap<T>(if statement: @escaping (Self.Output) -> Bool,
+                                  satisfied transform1: @escaping @autoclosure () -> T,
+                                  else transform2: @escaping @autoclosure () -> T) -> Publishers.Map<Self, T> {
+        self.map { output in
+            if statement(output) {
+                return transform1()
+            }
+            return transform2()
+        }
+    }
+    
+    public func conditionalMap<T>(if statement: @escaping @autoclosure () -> Bool,
+                                  satisfied transform1: @escaping @autoclosure () -> T,
+                                  else transform2: @escaping @autoclosure () -> T) -> Publishers.Map<Self, T> {
+        self.map { output in
+            if statement() {
+                return transform1()
+            }
+            return transform2()
+        }
+    }
 }
 
+@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
 extension Publisher where Self.Failure == Never {
     
     func assign(to failablePublished: CurrentValuePublished<Self.Output,Self.Failure>) -> AnyCancellable {
@@ -30,6 +54,7 @@ extension Publisher where Self.Failure == Never {
     }
 }
 
+@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
 @propertyWrapper
 class CurrentValuePublished<Value,Failure> where Failure: Error {
 
