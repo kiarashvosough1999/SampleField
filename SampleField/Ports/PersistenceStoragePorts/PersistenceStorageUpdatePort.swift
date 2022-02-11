@@ -6,7 +6,10 @@
 //
 
 import Foundation
+import Combine
+import CoreData
 
 protocol PersistenceStorageUpdatePort {
-    func update<T>(_ object: T) throws where T: NSMangedObjectConvertible
+    func update<T>(_ object: T, on context: ContextName) -> Result<T,FieldError> where T: NSMangedObjectConvertible
+    func update<T>(_ object: T, on context: ContextName) -> AnyPublisher<T,FieldError> where T: NSMangedObjectConvertible
 }
