@@ -18,7 +18,8 @@ enum FieldError: Error {
         case CannotFindObject
         case WriteContextNotExist
         case ReadContextNotExist
-        case ContextNotExist(name: String)
+        case ContextNotExist(reason: ContextableError)
+        case ContextDealocated
         case CannotFetch
         case CannotFetchInObserveMode
         case CannotDelete
@@ -28,6 +29,7 @@ enum FieldError: Error {
         case CannotSetRelationShip
         case CannotDetectChanges(for: ChangeType)
         case InvalidObjectID(String)
+        case unknown(Error?)
 
     }
 }
