@@ -16,6 +16,12 @@ final class ActionPublished: UIAction {
         }
     }
     
+    convenience init<T>(actionSubject: InFailablePassThroughSubject<T>?, signalValue: T) {
+        self.init { [weak actionSubject, signalValue] _ in
+            actionSubject?.send(signalValue)
+        }
+    }
+    
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
