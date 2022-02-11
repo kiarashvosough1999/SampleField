@@ -9,6 +9,7 @@ import Foundation
 import CoreData
 import Combine
 
+// FetchRequest is not yet supportes, indeed it was not needed now
 class CoreDataPersistenceStorageAdapter: Contextable {
     
     typealias Context = NSManagedObjectContext
@@ -54,28 +55,37 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageInsertPort {
                     promise(.failure(.selfFoundNil))
                     return
                 }
+                do {
+                    let context = try strongSelf.getContext(with: context)
+                    
+                    context.perform { safeContext in
+                        
+                        guard let context = try? safeContext.get() else {
+                            promise(.failure(.dbError(reason: .ContextDealocated)))
+                            return
+                        }
+                        
+                        let managedObject = T.NSManagedObjectType(context: context)
+                        if managedObject.from(object: object).not {
+                            promise(.failure(.dbError(reason: .CannotCreate)))
+                            return
+                        }
+                        
+                        do {
+                            try context.save()
+                            var newobject = object
+                            newobject.identifier = managedObject.identifier
+                            promise(.success(newobject))
+                        } catch {
+                            promise(.failure(.dbError(reason: .CannotSave)))
+                        }
+                    }
+                } catch let error as ContextableError {
+                    promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                } catch {
+                    promise(.failure(.dbError(reason: .unknown(error))))
+                }
                 
-                guard let context = strongSelf.getContext(with: context) else {
-                    promise(.failure(.dbError(reason: .ContextNotExist(name: context.rawValue))))
-                    return
-                }
-                context.perform { [unowned context] in
-                    
-                    let managedObject = T.NSManagedObjectType(context: context)
-                    if managedObject.from(object: object).not {
-                        promise(.failure(.dbError(reason: .CannotCreate)))
-                        return
-                    }
-                    
-                    do {
-                        try context.save()
-                        var newobject = object
-                        newobject.identifier = managedObject.identifier
-                        promise(.success(newobject))
-                    } catch {
-                        promise(.failure(.dbError(reason: .CannotSave)))
-                    }
-                }
             }
         }.eraseToAnyPublisher()
     }
@@ -84,30 +94,41 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageInsertPort {
         var _error: FieldError?
         var managedObject: T.NSManagedObjectType!
         var newobject = object
-        mainContext.performAndWait { [weak self] in
+        
+        do {
+            let context = try getContext(with: context)
             
-            guard let strongSelf = self else {
-                return
+            context.performAndWait { safeContext in
+                do {
+                    let context = try safeContext.get()
+                    
+                    managedObject = T.NSManagedObjectType(context: context)
+                    
+                    if managedObject.from(object: object).not {
+                        _error = .dbError(reason: .CannotCreate)
+                        return
+                    }
+                    
+                    do {
+                        try context.save()
+                        newobject.identifier = managedObject.identifier
+                    } catch {
+                        _error = .dbError(reason: .CannotSave)
+                    }
+                    
+                } catch let error as ContextableError {
+                    _error = .dbError(reason: .ContextNotExist(reason: error))
+                } catch {
+                    _error = .dbError(reason: .unknown(error))
+                }
+                
             }
-            
-            guard let context = strongSelf.getContext(with: context) else {
-                return
-            }
-            managedObject = T.NSManagedObjectType(context: context)
-            if managedObject.from(object: object).not {
-                _error = .dbError(reason: .CannotCreate)
-                return
-            }
-            
-            do {
-                try context.save()
-                newobject.identifier = managedObject.identifier
-            } catch {
-                print(error)
-                _error = .dbError(reason: .CannotSave)
-            }
+        } catch {
+            _error = .dbError(reason: .ContextNotExist(reason: error.asContextableErrorUnsafe))
         }
+        
         if let _error = _error { return .failure(_error) }
+        
         return .success(newobject)
     }
 }
@@ -125,54 +146,69 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageUpdatePort {
                     return
                 }
                 
-                guard let context = strongSelf.getContext(with: context) else {
-                    promise(.failure(.dbError(reason: .ContextNotExist(name: context.rawValue))))
-                    return
+                do {
+                    let context = try strongSelf.getContext(with: context)
+                    
+                    context.perform { [unowned strongSelf] safeContext in
+                        do {
+                            let context = try safeContext.get()
+                            
+                            guard let managedObject: T.NSManagedObjectType = try strongSelf.get(object: object, with: context) else {
+                                promise(.failure(.dbError(reason: .CannotFetch)))
+                                return
+                            }
+                            
+                            if managedObject.from(object: object).not {
+                                promise(.failure(.dbError(reason: .CannotCreate)))
+                                return
+                            }
+                            try context.save()
+                            promise(.success(object))
+                        } catch let error as ContextableError {
+                            promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                        } catch {
+                            promise(.failure(error.asFPError(or: .dbError(reason: .CannotSave))))
+                        }
+                    }
+                    
+                } catch {
+                    promise(.failure(.dbError(reason: .ContextNotExist(reason: error.asContextableErrorUnsafe))))
                 }
                 
-                context.perform { [unowned strongSelf, unowned context] in
-                    do {
-                        guard let managedObject: T.NSManagedObjectType = try strongSelf.get(object: object, with: context) else {
-                            promise(.failure(.dbError(reason: .CannotFetch)))
-                            return
-                        }
-                        
-                        if managedObject.from(object: object).not {
-                            promise(.failure(.dbError(reason: .CannotCreate)))
-                            return
-                        }
-                        try context.save()
-                        promise(.success(object))
-                    } catch {
-                        promise(.failure(error.asFPError(or: .dbError(reason: .CannotSave))))
-                    }
-                }
             }
         }.eraseToAnyPublisher()
     }
     
     func update<T>(_ object: T, on context: ContextName = .main) -> Result<T,FieldError> where T : NSMangedObjectConvertible {
         
-        guard let context = self.getContext(with: context) else { return .failure(.dbError(reason: .ContextNotExist(name: context.rawValue)))}
-        
         var _error: FieldError?
-        
-        mainContext.performAndWait { [unowned context] in
-            do {
-                guard let managedObject: T.NSManagedObjectType = try get(object: object, with: context) else {
-                    _error = .dbError(reason: .CannotFetch)
-                    return
+        do {
+            let context = try getContext(with: context)
+            
+            context.performAndWait { safeContext in
+                do {
+                    let context = try safeContext.get()
+                    
+                    guard let managedObject: T.NSManagedObjectType = try get(object: object, with: context) else {
+                        _error = .dbError(reason: .CannotFetch)
+                        return
+                    }
+                    
+                    if managedObject.from(object: object).not {
+                        _error = .dbError(reason: .CannotUpdate)
+                        return
+                    }
+                    try context.save()
+                } catch let error as ContextableError {
+                    _error = .dbError(reason: .ContextNotExist(reason: error))
+                } catch {
+                    _error = error.asFPError(or: .dbError(reason: .CannotUpdate))
                 }
-                
-                if managedObject.from(object: object).not {
-                    _error = .dbError(reason: .CannotCreate)
-                    return
-                }
-                try context.save()
-            } catch {
-                _error = error.asFPError(or: .dbError(reason: .CannotSave))
             }
+        } catch {
+            _error = .dbError(reason: .ContextNotExist(reason: error.asContextableErrorUnsafe))
         }
+        
         if let _error = _error { return .failure(_error) }
         
         return .success(object)
@@ -184,32 +220,41 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageUpdatePort {
 extension CoreDataPersistenceStorageAdapter: PersistenceStorageFetchPort {
     
     func fetchOne<T>(with identifier: String, on context: ContextName = .main) -> Result<T,FieldError> where T : NSMangedObjectConvertible {
-        
-        guard let context = self.getContext(with: context) else { return .failure(.dbError(reason: .ContextNotExist(name: context.rawValue)))}
-        
-        guard let uri = URL(string: identifier),
-              let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri) else {
-                  return .failure(FieldError.dbError(reason: .InvalidObjectID(identifier)))
-              }
-        
-        var item: T!
         var _error: FieldError?
-        context.performAndWait { [unowned context] in
-            do {
-                
-                guard let managedObject = context.object(with: objectID) as? ObjectConvertible else {
-                    _error = .dbError(reason: .CannotFetch)
-                    return
+        
+        do {
+            let context = try self.getContext(with: context)
+            
+            guard let uri = URL(string: identifier),
+                  let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri) else {
+                      return .failure(FieldError.dbError(reason: .InvalidObjectID(identifier)))
+                  }
+            
+            var item: T!
+            
+            context.performAndWait { safeContext in
+                do {
+                    
+                    let context = try safeContext.get()
+                    
+                    let managedObject: ObjectConvertible = try context.object(with: objectID)
+                    
+                    item = try managedObject.toObject()
+                } catch let error as ContextableError {
+                    _error = .dbError(reason: .ContextNotExist(reason: error))
+                } catch {
+                    _error = error.asFPError(or: .dbError(reason: .CannotFetch))
                 }
-                item = try managedObject.toObject()
-            } catch {
-                _error = error.asFPError(or: .dbError(reason: .CannotFetch))
             }
+            
+            return .success(item)
+        } catch let error as ContextableError {
+            _error = .dbError(reason: .ContextNotExist(reason: error))
+        } catch {
+            _error = .dbError(reason: .unknown(error))
         }
         
-        if let _error = _error { return .failure(_error) }
-        
-        return .success(item)
+        return .failure(_error!)
     }
     
     func fetchOne<T>(type: T.Type, on context: ContextName = .main) -> AnyPublisher<T,FieldError> where T : NSMangedObjectConvertible {
@@ -221,53 +266,69 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageFetchPort {
                     return
                 }
                 
-                guard let context = strongSelf.getContext(with: context) else {
-                    promise(.failure(.dbError(reason: .ContextNotExist(name: context.rawValue))))
-                    return
-                }
-                context.perform { [unowned context] in
-                    let request = NSFetchRequest<T.NSManagedObjectType>(entityName: String(describing: T.NSManagedObjectType.self))
-                    request.returnsObjectsAsFaults = false
-                    request.fetchLimit = 1
-                    do {
-                        let managedObject = try context.fetch(request).first
-                        guard let item: T = try managedObject?.toObject() else {
-                            promise(.failure(.dbError(reason: .CannotFetch)))
-                            return
+                do {
+                    let context = try strongSelf.getContext(with: context)
+                    
+                    context.perform { safeContext in
+                        let request = NSFetchRequest<T.NSManagedObjectType>(entityName: String(describing: T.NSManagedObjectType.self))
+                        request.returnsObjectsAsFaults = false
+                        request.fetchLimit = 1
+                        do {
+                            let context = try safeContext.get()
+                            
+                            let managedObject = try context.fetch(request).first
+                            guard let item: T = try managedObject?.toObject() else {
+                                promise(.failure(.dbError(reason: .CannotFetch)))
+                                return
+                            }
+                            promise(.success(item))
+                        } catch let error as ContextableError {
+                            promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                        } catch {
+                            promise(.failure(error.asFPError(or: .dbError(reason: .CannotFetch))))
                         }
-                        promise(.success(item))
-                    } catch {
-                        promise(.failure(error.asFPError(or: .dbError(reason: .CannotFetch))))
                     }
+                } catch let error as ContextableError {
+                    promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                } catch {
+                    promise(.failure(.dbError(reason: .unknown(error))))
                 }
+                
+                
             }
         }.eraseToAnyPublisher()
     }
     
     func fetchAll<T>(on context: ContextName = .main) -> Result<[T],FieldError> where T: NSMangedObjectConvertible {
         
-        
-        guard let context = self.getContext(with: context) else { return .failure(.dbError(reason: .ContextNotExist(name: context.rawValue)))}
-        
         var items: [T] = []
         var _error: FieldError?
-        context.performAndWait { [unowned context] in
-            
-            let request = NSFetchRequest<T.NSManagedObjectType>(entityName: String(describing: T.NSManagedObjectType.self))
-            request.returnsObjectsAsFaults = false
-            
-            do {
+        
+        do {
+            let context = try getContext(with: context)
+            context.performAndWait { safeContext in
                 
-                let managedObjects = try context.fetch(request)
-                items = try managedObjects.compactMap { try $0.toObject() }
-            } catch {
-                _error = error.asFPError(or: .dbError(reason: .CannotFetch))
+                let request = NSFetchRequest<T.NSManagedObjectType>(entityName: String(describing: T.NSManagedObjectType.self))
+                request.returnsObjectsAsFaults = false
+                
+                do {
+                    let context = try safeContext.get()
+                    let managedObjects = try context.fetch(request)
+                    items = try managedObjects.compactMap { try $0.toObject() }
+                } catch let error as ContextableError {
+                    _error = .dbError(reason: .ContextNotExist(reason: error))
+                } catch {
+                    _error = error.asFPError(or: .dbError(reason: .CannotFetch))
+                }
             }
+            return .success(items)
+        } catch let error as ContextableError {
+            _error = .dbError(reason: .ContextNotExist(reason: error))
+        } catch {
+            _error = .dbError(reason: .unknown(error))
         }
         
-        if let _error = _error { return .failure(_error) }
-        
-        return .success(items)
+        return .failure(_error!)
     }
 }
 
@@ -285,24 +346,33 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageDeletePort {
                     return
                 }
                 
-                guard let context = strongSelf.getContext(with: context) else {
-                    promise(.failure(.dbError(reason: .ContextNotExist(name: context.rawValue))))
-                    return
-                }
-                context.perform { [unowned strongSelf, unowned context] in
-                    do {
-                        let managedObjects: [T.NSManagedObjectType] = try objects
-                            .compactMap { try strongSelf.get(object: $0, with: context) }
-                        
-                        managedObjects.forEach { context.delete($0) }
-                        
-                        try context.save()
-                        
-                        promise(.success(objects))
-                        
-                    } catch {
-                        promise(.failure(error.asFPError(or: .dbError(reason: .CannotDelete))))
+                do {
+                    let context = try strongSelf.getContext(with: context)
+                    
+                    context.perform { [unowned strongSelf] safeContext in
+                        do {
+                            let context = try safeContext.get()
+                            
+                            let managedObjects: [T.NSManagedObjectType] = try objects
+                                .compactMap { try strongSelf.get(object: $0, with: context) }
+                            
+                            managedObjects.forEach { context.delete($0) }
+                            
+                            try context.save()
+                            
+                            promise(.success(objects))
+                            
+                        } catch let error as ContextableError {
+                            promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                        } catch {
+                            promise(.failure(.dbError(reason: .CannotSave)))
+                        }
                     }
+                    
+                } catch let error as ContextableError {
+                    promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                } catch {
+                    promise(.failure(.dbError(reason: .unknown(error))))
                 }
             }
         }.eraseToAnyPublisher()
@@ -317,26 +387,34 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageDeletePort {
                     return
                 }
                 
-                guard let context = strongSelf.getContext(with: context) else {
-                    promise(.failure(.dbError(reason: .ContextNotExist(name: context.rawValue))))
-                    return
-                }
-                context.perform { [unowned strongSelf, unowned context] in
-                    do {
-                        guard let managedObject: T.NSManagedObjectType = try strongSelf.get(object: object, with: context) else {
-                            promise(.failure(.dbError(reason: .CannotFindObject)))
-                            return
+                do {
+                    let context = try strongSelf.getContext(with: context)
+                    
+                    context.perform { [unowned strongSelf] safeContext in
+                        do {
+                            let context = try safeContext.get()
+                            
+                            guard let managedObject: T.NSManagedObjectType = try strongSelf.get(object: object, with: context) else {
+                                promise(.failure(.dbError(reason: .CannotFindObject)))
+                                return
+                            }
+                            
+                            context.delete(managedObject)
+                            
+                            try context.save()
+                            
+                            promise(.success(object))
+                            
+                        } catch let error as ContextableError {
+                            promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                        } catch {
+                            promise(.failure(.dbError(reason: .CannotSave)))
                         }
-                        
-                        context.delete(managedObject)
-                        
-                        try context.save()
-                        
-                        promise(.success(object))
-                        
-                    } catch {
-                        promise(.failure(error.asFPError(or: .dbError(reason: .CannotDelete))))
                     }
+                } catch let error as ContextableError {
+                    promise(.failure(.dbError(reason: .ContextNotExist(reason: error))))
+                } catch {
+                    promise(.failure(.dbError(reason: .unknown(error))))
                 }
             }
         }.eraseToAnyPublisher()
