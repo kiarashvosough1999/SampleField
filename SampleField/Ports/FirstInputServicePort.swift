@@ -17,4 +17,6 @@ protocol FirstInputServicePort {
     func observeInputOnDB() -> AnyPublisher<FirstInputHolderModel, FieldError>
     
     func checkForInputValidation(from string: String) -> Bool
+    
+    func isFieldNotEmpty(input: String) -> Bool
 }

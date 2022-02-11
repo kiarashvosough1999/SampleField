@@ -68,14 +68,16 @@ final class FirstInputAdapter {
             .store(in: &cancelables)
         
         firstInitialPublisher
-            .map { model -> FirstInputButtonState in
-                if !model.input.isEmpty && model.input.count == 10 { return FirstInputButtonState.canPopUp }
-                return FirstInputButtonState.canNotPopUp
-            }
+            .conditionalMap(if: {
+                self.firstInputServicePort.isFieldNotEmpty(input: $0.input) &&
+                self.firstInputServicePort.checkForInputValidation(from: $0.input)
+            }, satisfied: FirstInputButtonState.canPopUp, else: FirstInputButtonState.canNotPopUp)
             .map { $0.canBeEnabled }
             .assign(to: $popUpButtonVisibilityState)
             .store(in: &cancelables)
     }
+    
+
     
     fileprivate func startObservingDatabase() {
         
@@ -90,12 +92,10 @@ final class FirstInputAdapter {
 
         // handle button state when user enter a text
         textInputEventPublisher
-            .map { model -> FirstInputButtonState in
-                if !model.isEmpty && model.count == 10 && self.firstInputServicePort.checkForInputValidation(from: model) {
-                    return FirstInputButtonState.canPopUp
-                }
-                return FirstInputButtonState.canNotPopUp
-            }
+            .conditionalMap(if: {
+                self.firstInputServicePort.isFieldNotEmpty(input: $0) &&
+                self.firstInputServicePort.checkForInputValidation(from: $0)
+            }, satisfied: FirstInputButtonState.canPopUp, else: FirstInputButtonState.canNotPopUp)
             .map { $0.canBeEnabled }
             .assign(to: $popUpButtonVisibilityState)
             .store(in: &cancelables)

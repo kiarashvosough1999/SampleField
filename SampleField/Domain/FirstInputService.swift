@@ -42,6 +42,10 @@ extension FirstInputServiceImpl: FirstInputServicePort {
         string.matches(#"^\d\d\d\d-\d\d\d\d\d$"#)
     }
     
+    func isFieldNotEmpty(input: String) -> Bool {
+        return !input.isEmpty && input.count == 10 ? true : false
+    }
+    
     func handleInputCaching(input: FirstInputHolderModel) -> AnyPublisher<FirstInputHolderModel,FieldError> {
         if checkForInputValidation(from: input.input) {
             // first time to save -> insert
