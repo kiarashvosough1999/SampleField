@@ -10,11 +10,11 @@ import Combine
 
 protocol FirstInputAdapterDelegate: AnyObject {
     
-    var textFieldReplacementStringDelegatePublisher: PassthroughSubject<(String?, NSRange, String), Never> { get }
+    var textFieldReplacementStringDelegatePublisher: InFailablePassThroughSubject<(String?, NSRange, String)> { get }
     
-    var popUpButtonVisibilityStatePublisher: AnyPublisher<Bool,Never> { get }
+    var popUpButtonVisibilityStatePublisher: InFailableAnyPublisher<Bool> { get }
     
-    var textFieldTextPublisher: AnyPublisher<String,Never> { get }
+    var textFieldTextPublisher: InFailableAnyPublisher<String> { get }
 }
 
 // this class acts as ViewModel
@@ -43,7 +43,7 @@ final class FirstInputAdapter {
     
     @CurrentValuePublished fileprivate var textInputModel: FirstInputHolderModel = FirstInputHolderModel(input: "")
     
-    fileprivate lazy var textFieldInputSubject = PassthroughSubject<(String?,NSRange,String),Never>()
+    fileprivate lazy var textFieldInputSubject = InFailablePassThroughSubject<(String?,NSRange,String)>()
     
     fileprivate var cancelables = Set<AnyCancellable>()
     
@@ -130,20 +130,20 @@ final class FirstInputAdapter {
 
 extension FirstInputAdapter: FirstInputAdapterDelegate {
     
-    var textFieldTextPublisher: AnyPublisher<String, Never> {
+    var textFieldTextPublisher: InFailableAnyPublisher<String> {
         $textInputModel
             .subject
             .map(\.input)
             .eraseToAnyPublisher()
     }
     
-    var popUpButtonVisibilityStatePublisher: AnyPublisher<Bool, Never> {
+    var popUpButtonVisibilityStatePublisher: InFailableAnyPublisher<Bool> {
         $popUpButtonVisibilityState
             .subject
             .eraseToAnyPublisher()
     }
     
-    var textFieldReplacementStringDelegatePublisher: PassthroughSubject<(String?, NSRange, String), Never> {
+    var textFieldReplacementStringDelegatePublisher: InFailablePassThroughSubject<(String?, NSRange, String)> {
         textFieldInputSubject
     }
     
