@@ -5,14 +5,19 @@
 //  Created by Kiarash Vosough on 2/9/22.
 //
 
-import Foundation
+import UIKit
 import Combine
 
 protocol InputCoordinatorDelegate: AnyObject {
+    
     var presentPopUpSubject: InFailablePassThroughSubject<Void> { get }
+    
+    var dismissPresentedViewSubject: InFailablePassThroughSubject<Bool> { get }
 }
 
 final class InputCoordinator: BaseCoordinator, InputCoordinatorDelegate {
+    
+    var dismissPresentedViewSubject: InFailablePassThroughSubject<Bool> = InFailablePassThroughSubject<Bool>()
     
     var presentPopUpSubject: InFailablePassThroughSubject<Void> = InFailablePassThroughSubject<Void>()
     
@@ -26,8 +31,34 @@ final class InputCoordinator: BaseCoordinator, InputCoordinatorDelegate {
     }
     
     fileprivate func startObservingDelegate() {
-        presentPopUpSubject.sink { _ in
-            print("dasdsadsad")
-        }.store(in: &cancelables)
+        presentPopUpSubject
+            .subscribe(on: DispatchQueue.global())
+            .receive(on: DispatchQueue.main)
+            .sink { _ in
+                self.presentSecondInputView()
+            }
+            .store(in: &cancelables)
+        
+        dismissPresentedViewSubject.sink { shouldAnimate in
+            self.dismissPresentedView(animated: shouldAnimate)
+        }
+        .store(in: &cancelables)
+    }
+    
+    fileprivate func dismissPresentedView(animated: Bool) {
+        navigationController?.presentedViewController?.dismiss(animated: animated, completion: nil)
+    }
+    
+    fileprivate func presentSecondInputView() {
+        let controller = SecondInputViewController.build(with: self,
+                                                         and: serviceContainer.getService()!)
+        
+        let navController = UINavigationController(rootViewController: controller)
+        let detailsTransitioningDelegate = InteractiveModalTransitioningDelegate()
+        navController.modalPresentationStyle = .custom
+        navController.transitioningDelegate = detailsTransitioningDelegate
+        self.navigationController?.present(navController,
+                                           animated: true,
+                                           completion: nil)
     }
 }

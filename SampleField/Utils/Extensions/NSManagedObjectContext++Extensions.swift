@@ -9,7 +9,7 @@ import CoreData
 
 extension NSManagedObjectContext {
     
-    func object<T>(with objectID: NSManagedObjectID) throws -> T where T: NSManagedObject {
+    func safeObject<T>(with objectID: NSManagedObjectID) throws -> T where T: NSManagedObject {
         guard let object = object(with: objectID) as? T else { throw NSManagedObjectContextError.objectCastFailed }
         if object.isFault { throw NSManagedObjectContextError.objectNotFound }
         return object

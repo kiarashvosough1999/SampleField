@@ -30,7 +30,7 @@ final class FirstInputViewController: UIViewController, ConnectableView {
     
     fileprivate var cancelables = Set<AnyCancellable>()
     
-    init(inputAdapter: FirstInputAdapterDelegate, coordinatorDelegate: InputCoordinatorDelegate? = nil) {
+    fileprivate init(inputAdapter: FirstInputAdapterDelegate, coordinatorDelegate: InputCoordinatorDelegate? = nil) {
         self.inputAdapter = inputAdapter
         self.coordinatorDelegate = coordinatorDelegate
         super.init(nibName: nil, bundle: nil)
@@ -105,7 +105,7 @@ final class FirstInputViewController: UIViewController, ConnectableView {
 
 extension FirstInputViewController {
     
-    static func build(with delegate: InputCoordinatorDelegate,and adapter: FirstInputAdapterDelegate) -> FirstInputViewController {
+    static func build(with delegate: InputCoordinatorDelegate?,and adapter: FirstInputAdapterDelegate) -> FirstInputViewController {
         FirstInputViewController(inputAdapter: adapter, coordinatorDelegate: delegate)
     }
 }

@@ -9,6 +9,7 @@ import Foundation
 
 struct FirstInputHolderModel: NSMangedObjectConvertible, Clonable {
     
+    // this typealias should not be here as it makes dependency between driving and domain layer
     typealias NSManagedObjectType = TextInputHolder
     
     var identifier: String = ""

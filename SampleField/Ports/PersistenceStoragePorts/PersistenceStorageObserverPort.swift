@@ -15,9 +15,9 @@ enum ChangeType: CaseIterable {
     
     var userInfoKey: String {
         switch self {
-        case .inserted: return NSInsertedObjectIDsKey
-        case .deleted: return NSDeletedObjectIDsKey
-        case .updated: return NSUpdatedObjectIDsKey
+        case .inserted: return "inserted"
+        case .deleted: return "deleted"
+        case .updated: return "updated"
         }
     }
 }
@@ -70,6 +70,15 @@ struct ChangeResultHolder<T>  {
         self.updated = updated
     }
     
+    var combinded: [T] {
+        inserted + deleted + updated
+    }
+    
+    func combined<V>(sortedBy keyPath: KeyPath<T,V>) -> [T] where V: Comparable {
+        (inserted + deleted + updated).sorted { f, s in
+            return f[keyPath: keyPath] > s[keyPath: keyPath]
+        }
+    }
 }
 
 protocol PersistenceStorageObserverPort {

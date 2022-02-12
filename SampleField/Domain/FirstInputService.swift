@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-final class FirstInputServiceImpl {
+final class FirstInputServiceImpl: InputCachingServicePort {
     
     fileprivate let storagePort: PersistenceStoragePort
     
@@ -18,9 +18,6 @@ final class FirstInputServiceImpl {
         self.storagePort = storagePort
         self.calcelables = Set<AnyCancellable>()
     }
-}
-
-extension FirstInputServiceImpl: FirstInputServicePort {
     
     func fetchInitialValue() -> AnyPublisher<FirstInputHolderModel,FieldError> {
         storagePort
@@ -29,38 +26,27 @@ extension FirstInputServiceImpl: FirstInputServicePort {
     }
     
     func observeInputOnDB() -> AnyPublisher<FirstInputHolderModel, FieldError> {
-        let deletedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .deleted)
-        let insertedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .inserted)
-        let updatedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .updated)
-        return Publishers
-            .Merge3(deletedPublisher,insertedPublisher,updatedPublisher)
-            .compactMap { $0.resuleValues.first }
+        return storagePort
+            .publisher(FirstInputHolderModel.self, changeTypes: [.deleted, .inserted ,.updated])
+            .compactMap { $0.combined(sortedBy: \.dateAdded).first }
             .eraseToAnyPublisher()
     }
     
-    func checkForInputValidation(from string: String) -> Bool {
-        string.matches(#"^\d\d\d\d-\d\d\d\d\d$"#)
-    }
-    
-    func isFieldNotEmpty(input: String) -> Bool {
-        return !input.isEmpty && input.count == 10 ? true : false
-    }
-    
-    func handleInputCaching(input: FirstInputHolderModel) -> AnyPublisher<FirstInputHolderModel,FieldError> {
-        if checkForInputValidation(from: input.input) {
-            // first time to save -> insert
-            if input.identifier.isEmpty {
-                return storagePort
-                    .insert(input, on: .main)
-                    .eraseToAnyPublisher()
-            }
-            else {
-                return storagePort
-                    .update(input, on: .main)
-                    .eraseToAnyPublisher()
-            }
+    func handleInsertOrUpdateInputCaching(input: FirstInputHolderModel) -> AnyPublisher<FirstInputHolderModel,FieldError> {
+        if input.identifier.isEmpty {
+            return storagePort
+                .insert(input, on: .main)
+                .eraseToAnyPublisher()
         }
-        else if input.input.isEmpty && input.identifier.isEmpty.not {
+        else {
+            return storagePort
+                .update(input, on: .main)
+                .eraseToAnyPublisher()
+        }
+    }
+    
+    func handleDeleteInputCaching(input: FirstInputHolderModel) -> AnyPublisher<FirstInputHolderModel,FieldError> {
+        if input.input.isEmpty && input.identifier.isEmpty.not {
             return storagePort
                 .deleteOne(input, on: .main)
         }

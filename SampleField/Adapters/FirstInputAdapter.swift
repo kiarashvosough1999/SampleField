@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-protocol FirstInputAdapterDelegate: AnyObject {
+protocol FirstInputAdapterDelegate {
     
     var textFieldReplacementStringDelegatePublisher: InFailablePassThroughSubject<(String?, NSRange, String)> { get }
     
@@ -49,17 +49,20 @@ final class FirstInputAdapter {
     
     // MARK: - LifeCycle
     
-    fileprivate let firstInputServicePort: FirstInputServicePort
+    fileprivate let inputCachingServicePort: InputCachingServicePort
     
-    init(firstInputServicePort: FirstInputServicePort) {
-        self.firstInputServicePort = firstInputServicePort
+    fileprivate let inputValidationServicePort: InputValidationServicePort
+    
+    init(firstInputServicePort: InputCachingServicePort, inputValidationServicePort: InputValidationServicePort) {
+        self.inputValidationServicePort = inputValidationServicePort
+        self.inputCachingServicePort = firstInputServicePort
         setupInitialDataFetch()
         startObservingDatabase()
     }
     
     fileprivate func setupInitialDataFetch() {
         
-        let firstInitialPublisher = firstInputServicePort
+        let firstInitialPublisher = inputCachingServicePort
             .fetchInitialValue()
             .replaceAnyInconsistency(with: .init(input: ""))
         
@@ -69,8 +72,8 @@ final class FirstInputAdapter {
         
         firstInitialPublisher
             .conditionalMap(if: {
-                self.firstInputServicePort.isFieldNotEmpty(input: $0.input) &&
-                self.firstInputServicePort.checkForInputValidation(from: $0.input)
+                self.inputValidationServicePort.isFieldNotEmpty(input: $0.input) &&
+                self.inputValidationServicePort.checkForInputValidation(from: $0.input)
             }, satisfied: FirstInputButtonState.canPopUp, else: FirstInputButtonState.canNotPopUp)
             .map { $0.canBeEnabled }
             .assign(to: $popUpButtonVisibilityState)
@@ -81,7 +84,7 @@ final class FirstInputAdapter {
     
     fileprivate func startObservingDatabase() {
         
-        firstInputServicePort
+        inputCachingServicePort
             .observeInputOnDB()
             .replaceAnyInconsistency(with: .init(input: ""))
             .assign(to: $textInputModel)
@@ -93,8 +96,8 @@ final class FirstInputAdapter {
         // handle button state when user enter a text
         textInputEventPublisher
             .conditionalMap(if: {
-                self.firstInputServicePort.isFieldNotEmpty(input: $0) &&
-                self.firstInputServicePort.checkForInputValidation(from: $0)
+                self.inputValidationServicePort.isFieldNotEmpty(input: $0) &&
+                self.inputValidationServicePort.checkForInputValidation(from: $0)
             }, satisfied: FirstInputButtonState.canPopUp, else: FirstInputButtonState.canNotPopUp)
             .map { $0.canBeEnabled }
             .assign(to: $popUpButtonVisibilityState)
@@ -102,10 +105,10 @@ final class FirstInputAdapter {
 
         // handle save or update text on db when it reaches the required length
         textInputEventPublisher
-            .filter { $0.count == 10 }
+            .filter { self.inputValidationServicePort.isInputLengthEnough(input: $0) }
             .flatMap { string in
-                return self.firstInputServicePort
-                    .handleInputCaching(input: self.textInputModel.clone(by: \.input, to: string))
+                return self.inputCachingServicePort
+                    .handleInsertOrUpdateInputCaching(input: self.textInputModel.clone(by: \.input, to: string))
                     .replaceAnyInconsistency(with: .init(input: ""))
                     .eraseToAnyPublisher()
             }
@@ -114,10 +117,10 @@ final class FirstInputAdapter {
         
         // handle delete text on db when it reaches the zeo length
         textInputEventPublisher
-            .filter { $0.count == 0 }
+            .filter { self.inputValidationServicePort.isInputLengthZero(input: $0) }
             .flatMap { string in
-                return self.firstInputServicePort
-                    .handleInputCaching(input: self.textInputModel.clone(by: \.input, to: string))
+                return self.inputCachingServicePort
+                    .handleDeleteInputCaching(input: self.textInputModel.clone(by: \.input, to: string))
                     .replaceAnyInconsistency(with: .init(input: ""))
                     .eraseToAnyPublisher()
             }

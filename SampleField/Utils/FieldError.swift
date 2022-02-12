@@ -19,6 +19,7 @@ enum FieldError: Error {
         case WriteContextNotExist
         case ReadContextNotExist
         case ContextNotExist(reason: ContextableError)
+        case ContextError(reason: NSManagedObjectContextError)
         case ContextDealocated
         case CannotFetch
         case CannotFetchInObserveMode

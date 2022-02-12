@@ -22,5 +22,23 @@ extension AppStyle {
                 view.setTitleColor(.yellow, for: [.normal])
             }
         }
+        
+        func closePopUpButton() -> UIViewStyle<Button> {
+            UIViewStyle { view in
+                view.translatesAutoresizingMaskIntoConstraints = false
+                view.setTitle("Close PopUp", for: [.normal])
+                view.backgroundColor = .lightGray
+                view.setTitleColor(.yellow, for: [.normal])
+            }
+        }
+        
+        func shuffleTextButton() -> UIViewStyle<Button> {
+            UIViewStyle { view in
+                view.translatesAutoresizingMaskIntoConstraints = false
+                view.setTitle("Shuffle", for: [.normal])
+                view.backgroundColor = .lightGray
+                view.setTitleColor(.yellow, for: [.normal])
+            }
+        }
     }
 }

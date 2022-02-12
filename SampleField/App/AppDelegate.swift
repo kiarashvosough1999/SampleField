@@ -33,12 +33,24 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         ServiceContainer.main.addService { res in
             FirstInputServiceImpl(storagePort: res.getService()!)
         }
-        .implements(FirstInputServicePort.self)
+        .implements(InputCachingServicePort.self)
         
         ServiceContainer.main.addService { res in
-            FirstInputAdapter(firstInputServicePort: res.getService()!)
+            FirstInputAdapter(firstInputServicePort: res.getService()!,
+                              inputValidationServicePort: res.getService()!)
         }
         .implements(FirstInputAdapterDelegate.self)
+        
+        ServiceContainer.main.addService { res in
+            InputValidationService()
+        }
+        .implements(InputValidationServicePort.self)
+        
+        ServiceContainer.main.addService { res in
+            SecondInputAdapter(inputCachingService: res.getService()!,
+                               inputValidationServicePort: res.getService()!)
+        }
+        .implements(SecondInputAdapterDelegate.self)
     }
 
     // MARK: UISceneSession Lifecycle

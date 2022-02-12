@@ -237,7 +237,7 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageFetchPort {
                     
                     let context = try safeContext.get()
                     
-                    let managedObject: ObjectConvertible = try context.object(with: objectID)
+                    let managedObject: T.NSManagedObjectType = try context.safeObject(with: objectID)
                     
                     item = try managedObject.toObject()
                 } catch let error as ContextableError {
@@ -445,37 +445,32 @@ extension CoreDataPersistenceStorageAdapter: PersistenceStorageObserverPort {
     }
     
     func publisher<T>(_ object: T.Type, changeTypes: [ChangeType] = ChangeType.allCases) -> AnyPublisher<ChangeResultHolder<T>,FieldError> where T : NSMangedObjectConvertible {
-        
-        let notification = NSManagedObjectContext.didMergeChangesObjectIDsNotification
         return NotificationCenter
             .default
-            .publisher(for: notification, object: mainContext)
+            .publisher(for: .NSManagedObjectContextObjectsDidChange, object: mainContext)
             .tryCompactMap { notification in
                 var inserted: [T] = []
                 var deleted: [T] = []
                 var updated: [T] = []
                 
                 func detectChanges(type: ChangeType) throws -> [T] {
-                    guard let changes = notification.userInfo?[type.userInfoKey] as? Set<NSManagedObjectID> else {
+                    guard let changes = notification.userInfo?[type.userInfoKey] as? Set<T.NSManagedObjectType> else {
                         throw FieldError.dbError(reason: .CannotDetectChanges(for: type))
                     }
                     
-                    let objects = changes
-                        .filter { $0.entity == T.NSManagedObjectType.entity() }
-                        .compactMap { self.mainContext.object(with: $0) as? T }
-                    return objects
+                    return try changes.compactMap { try $0.toObject() }
                 }
                 
                 if changeTypes.contains(.updated) {
-                    updated = try detectChanges(type: .updated)
+                    updated = (try? detectChanges(type: .updated)).or([])
                 }
                 
                 if changeTypes.contains(.inserted) {
-                    inserted = try detectChanges(type: .inserted)
+                    inserted = (try? detectChanges(type: .inserted)).or([])
                 }
                 
                 if changeTypes.contains(.deleted) {
-                    deleted = try detectChanges(type: .deleted)
+                    deleted = (try? detectChanges(type: .deleted)).or([])
                 }
                 return ChangeResultHolder(inserted: inserted, deleted: deleted, updated: updated)
             }
