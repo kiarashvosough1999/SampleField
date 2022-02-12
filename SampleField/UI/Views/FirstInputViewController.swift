@@ -105,7 +105,7 @@ final class FirstInputViewController: UIViewController, ConnectableView {
 
 extension FirstInputViewController {
     
-    static func build(with delegate: InputCoordinatorDelegate,and adapter: FirstInputAdapterDelegate) -> FirstInputViewController {
+    static func build(with delegate: InputCoordinatorDelegate?,and adapter: FirstInputAdapterDelegate) -> FirstInputViewController {
         FirstInputViewController(inputAdapter: adapter, coordinatorDelegate: delegate)
     }
 }
