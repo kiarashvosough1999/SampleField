@@ -18,7 +18,7 @@ class FirstInputViewControllerTest: XCTestCase {
     override func setUpWithError() throws {
         cancelables = Set<AnyCancellable>()
         adapter = FirstInputAdapterMock()
-        viewController = FirstInputViewController(inputAdapter: adapter)
+        viewController = FirstInputViewController.build(with: nil, and: adapter)
         viewController.setupBindings()
     }
 
