@@ -47,7 +47,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         .implements(InputValidationServicePort.self)
         
         ServiceContainer.main.addService { res in
-            SecondInputAdapter()
+            SecondInputAdapter(inputCachingService: res.getService()!,
+                               inputValidationServicePort: res.getService()!)
         }
         .implements(SecondInputAdapterDelegate.self)
     }
