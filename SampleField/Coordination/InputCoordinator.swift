@@ -5,7 +5,7 @@
 //  Created by Kiarash Vosough on 2/9/22.
 //
 
-import Foundation
+import UIKit
 import Combine
 
 protocol InputCoordinatorDelegate: AnyObject {
@@ -52,10 +52,12 @@ final class InputCoordinator: BaseCoordinator, InputCoordinatorDelegate {
     fileprivate func presentSecondInputView() {
         let controller = SecondInputViewController.build(with: self,
                                                          and: serviceContainer.getService()!)
+        
+        let navController = UINavigationController(rootViewController: controller)
         let detailsTransitioningDelegate = InteractiveModalTransitioningDelegate()
-        controller.modalPresentationStyle = .custom
-        controller.transitioningDelegate = detailsTransitioningDelegate
-        self.navigationController?.present(controller,
+        navController.modalPresentationStyle = .custom
+        navController.transitioningDelegate = detailsTransitioningDelegate
+        self.navigationController?.present(navController,
                                            animated: true,
                                            completion: nil)
     }

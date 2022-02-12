@@ -14,9 +14,9 @@ class SecondInputViewController: UIViewController, ConnectableView {
     
     fileprivate let viewMaker = ViewMaker()
     
-    lazy var inputTextfield = viewMaker
+    lazy var inputLabel = viewMaker
         .textField
-        .with(style: AppStyle.TextFields().simpleField())
+        .with(style: AppStyle.Labels().simpleLabel())
     
     lazy var popUpCloseButton = viewMaker
         .button
@@ -28,7 +28,7 @@ class SecondInputViewController: UIViewController, ConnectableView {
     
     
     fileprivate var inputAdapter: SecondInputAdapterDelegate
-
+    
     fileprivate weak var coordinatorDelegate: InputCoordinatorDelegate?
     
     fileprivate var cancelables = Set<AnyCancellable>()
@@ -54,37 +54,56 @@ class SecondInputViewController: UIViewController, ConnectableView {
     func setupView() {
         view.backgroundColor = .white
         
-        inputTextfield.delegate = self
+        title = "Shuffler"
         
-        shuffleButton.addAction(ActionPublished(actionSubject: inputAdapter.shuffleButtonAction),
-                                for: .touchUpInside)
+        inputLabel.delegate = self
+        
+        addDoneNavBarButton()
+    }
+    
+    fileprivate func addDoneNavBarButton() {
+        let doneButton = UIBarButtonItem(title: "DONE",
+                                         primaryAction: ActionPublished(actionSubject: coordinatorDelegate?.dismissPresentedViewSubject, signalValue: true))
+        
+        navigationItem.rightBarButtonItems = [doneButton]
+    }
+    
+    func setupBindings() {
+        shuffleButton
+            .addAction(ActionPublished(actionSubject: inputAdapter.shuffleButtonAction),
+                       for: .touchUpInside)
         
         popUpCloseButton
             .addAction(ActionPublished(actionSubject: coordinatorDelegate?.dismissPresentedViewSubject, signalValue: true),
                        for: .touchUpInside)
-    }
-    
-    func setupBindings() {
         
+        shuffleButton
+            .addAction(ActionPublished(actionSubject: inputAdapter.shuffleButtonAction),
+                       for: .touchUpInside)
+        
+        inputAdapter
+            .textLabelPublisher
+            .assign(to: \.orEmptyText, on: inputLabel)
+            .store(in: &cancelables)
     }
     
     func addViews() {
-        view.addSubviews(views: inputTextfield, popUpCloseButton, shuffleButton)
+        view.addSubviews(views: inputLabel, popUpCloseButton, shuffleButton)
     }
-
+    
     @ConstraintBuilder
     func setupConstraints() -> [NSLayoutConstraint] {
-        inputTextfield.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        inputTextfield.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20)
-        inputTextfield.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
-        inputTextfield.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 1/10)
+        inputLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        inputLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20)
+        inputLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+        inputLabel.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 1/10)
         
-        popUpCloseButton.topAnchor.constraint(equalTo: inputTextfield.bottomAnchor, constant: 20)
+        popUpCloseButton.topAnchor.constraint(equalTo: inputLabel.bottomAnchor, constant: 20)
         popUpCloseButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20)
         popUpCloseButton.trailingAnchor.constraint(equalTo: view.centerXAnchor, constant: -10)
         popUpCloseButton.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 1/14)
         
-        shuffleButton.topAnchor.constraint(equalTo: inputTextfield.bottomAnchor, constant: 20)
+        shuffleButton.topAnchor.constraint(equalTo: inputLabel.bottomAnchor, constant: 20)
         shuffleButton.leadingAnchor.constraint(equalTo: view.centerXAnchor, constant: 10)
         shuffleButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10)
         shuffleButton.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 1/14)
