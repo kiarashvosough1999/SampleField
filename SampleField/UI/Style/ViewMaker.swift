@@ -25,10 +25,21 @@ final class ViewMaker {
         return self
     }
     
+    public var label: ViewMaker {
+        _view = Label(frame: .zero)
+        return self
+    }
+    
     // style adding
     
     @discardableResult func getView() -> UIView {
         return _view
+    }
+    
+    @discardableResult func with(style: UIViewStyle<Label>) -> Label {
+        let view = _view as! Label
+        style.apply(to: (view))
+        return view
     }
     
     @discardableResult func with(style: UIViewStyle<Button>) -> Button {
