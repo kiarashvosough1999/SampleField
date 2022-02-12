@@ -33,6 +33,7 @@ extension ObjectConvertible {
 
 protocol NSMangedObjectConvertible: Hashable {
     
+    // this associatedtype should not be here as it makes dependency between driving and domain layer
     associatedtype NSManagedObjectType: ObjectConvertible
     
     /// An identifier that is used to fetch the corresponding database object.
