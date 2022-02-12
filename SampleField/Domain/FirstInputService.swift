@@ -26,12 +26,9 @@ final class FirstInputServiceImpl: InputCachingServicePort {
     }
     
     func observeInputOnDB() -> AnyPublisher<FirstInputHolderModel, FieldError> {
-        let deletedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .deleted)
-        let insertedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .inserted)
-        let updatedPublisher = storagePort.publisher(FirstInputHolderModel.self, changeType: .updated)
-        return Publishers
-            .Merge3(deletedPublisher,insertedPublisher,updatedPublisher)
-            .compactMap { $0.resuleValues.first }
+        return storagePort
+            .publisher(FirstInputHolderModel.self, changeTypes: [.deleted, .inserted ,.updated])
+            .compactMap { $0.combined(sortedBy: \.dateAdded).first }
             .eraseToAnyPublisher()
     }
     

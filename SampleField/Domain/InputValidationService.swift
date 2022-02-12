@@ -17,7 +17,6 @@ class InputValidationService: InputValidationServicePort  {
                 partialResult + "-" + next.shuffled()
             }
         result.removeFirst()
-        result.removeLast()
         return result
     }
     
